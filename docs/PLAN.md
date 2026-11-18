@@ -286,8 +286,9 @@ v1 の実装はこのリポジトリに存在する。`uv sync && uv run mainich
 | `deliver/file.py` | ✅ `digest/YYYY-MM-DD.md` を常時保存 |
 | `state.py` + CLI | ✅ `run` / `force` / `preview` / `status` / `install` / `uninstall` |
 | `archive.py` | ✅ git add/commit/push（失敗は警告のみ） |
-| `install` | ✅ systemd user unit / launchd LaunchAgent を生成・登録 |
-| テスト | ✅ 30 件（ネットワーク・API キー不要） |
+| `install` | ✅ systemd user unit / launchd LaunchAgent / Task Scheduler (XML) を生成・登録 |
+| テスト | ✅ 41 件（ネットワーク・API キー不要。3 OS の scheduler ファイルを全 OS でパース検証） |
+| 実発火テスト | ✅ `scripts/firing_test.py`（fire / digest）+ CI matrix (ubuntu/macos/windows) |
 
 ### プランからの変更点
 
@@ -309,11 +310,12 @@ v1 の実装はこのリポジトリに存在する。`uv sync && uv run mainich
 
 - DeepSeek 実キーでの要約品質・トークン数（401 時のフォールバックは検証済み）
 - SMTP 実送信（メッセージ組み立てとマルチパート化はテスト済み）
-- systemd timer / launchd の実発火（unit 生成と plist パースは検証済み）
+- macOS launchd / Windows Task Scheduler の実発火（Linux systemd では検証済み。
+  `scripts/firing_test.py` + CI matrix で各 OS 上で自動検証する）
 
 ### 残タスク（v1.1 候補）
 
 - 記事本文取得（有料壁はスキップ）で要約精度向上
 - Google News のエンコード URL を元 URL にデコード
 - 同一イベントの媒体違いを LLM 側でクラスタリングして 1 本に集約
-- Windows (Task Scheduler) 対応
+- Windows: ログオン中のみ実行（`InteractiveToken`）。サービス化は v2 以降

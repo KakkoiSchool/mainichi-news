@@ -34,8 +34,9 @@ uv run mainichi-news run       # 今日の分を実行（同日 2 回目は no-o
 | `force` | `run --force` と同じ。`--no-email` でメールだけ抑止 |
 | `preview` | メール送信・state 更新・アーカイブなしで Markdown を stdout に出力 |
 | `status` | 設定 / API キー / メール / 最終実行日を表示 |
-| `install` | systemd timer または launchd LaunchAgent を配置して有効化 |
+| `install` | systemd timer / launchd LaunchAgent / Task Scheduler に登録 |
 | `install --no-enable` | ファイル配置のみ（有効化しない） |
+| `install --print` | 書き込まず scheduler ファイルを表示（`--platform` 指定可） |
 | `uninstall` | 登録解除 |
 
 `preview --date 2026-11-18` で日付指定も可能。
@@ -90,6 +91,16 @@ journalctl --user -u mainichi-news.service -n 50   # ログ
 
 `OnCalendar=*-*-* 06:00:00` + `OnBootSec=90s` + `Persistent=true`（逃した分を補完）。
 
+### Windows
+
+```powershell
+uv run mainichi-news install
+schtasks /Query /TN mainichi-news /V /FO LIST
+```
+
+ログオン 90 秒後 + 毎日 06:00 の 2 トリガー。`StartWhenAvailable` で逃した回を補完。
+実行はログオン中のみ（`LogonType=InteractiveToken`、パスワード不要）。
+
 ### macOS
 
 ```bash
@@ -99,6 +110,14 @@ tail -f ~/Library/Logs/mainichi-news.log
 ```
 
 `RunAtLoad`（ログイン時）+ `StartCalendarInterval`（06:00）。guard が同日 2 回目を弾く。
+
+### 3 OS の scheduler ファイルを今の OS で確認
+
+```bash
+uv run mainichi-news install --print --platform linux
+uv run mainichi-news install --print --platform macos
+uv run mainichi-news install --print --platform windows
+```
 
 ## 仕組み
 
@@ -140,10 +159,27 @@ tests/                # pytest（ネットワーク不要）
 ```bash
 uv sync --extra dev
 uv run pytest
-uv run ruff check src tests
+uv run ruff check src tests scripts
 ```
 
 テストはネットワークと API キー不要。実 RSS の疎通確認は `preview` で行う。
+
+### 実発火テスト（OS スケジューラを実際に動かす）
+
+```bash
+uv run python scripts/firing_test.py --mode fire          # マーカーを数秒後に発火
+uv run python scripts/firing_test.py --mode digest --yes  # run を scheduler 経由で実行 + 冪等ガード
+```
+
+- `fire`: systemd transient timer / launchd `StartInterval` / `schtasks /SC ONCE` を実登録し、
+  マーカーファイルが書かれたことを確認（ネットワーク不要）
+- `digest`: 一時 config/state で `mainichi-news run` を scheduler 経由実行 → `digest/*.md` 生成、
+  2 回目発火で state 不変（二重配信なし）を確認
+- スケジューラが使えない環境は exit 77（skip）
+
+3 OS の scheduler ファイル自体は `tests/test_schedulers.py` が全 OS 分をパース検証する
+（systemd unit / plist / Task Scheduler XML）。CI は ubuntu / macos / windows の matrix で
+両方を実行する。
 
 ## ドキュメント
 

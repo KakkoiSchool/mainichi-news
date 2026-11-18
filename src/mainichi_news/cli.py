@@ -46,10 +46,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("status", help="設定と最終実行を表示")
 
-    install = sub.add_parser("install", help="systemd / launchd に登録")
+    install = sub.add_parser("install", help="systemd / launchd / Task Scheduler に登録")
     install.add_argument("--no-enable", action="store_true", help="ファイル配置のみ")
+    install.add_argument("--print", dest="print_only", action="store_true", help="書き込まず内容を表示")
+    install.add_argument(
+        "--platform", choices=["linux", "macos", "windows"], help="対象OS（既定: 自動判定）"
+    )
 
-    sub.add_parser("uninstall", help="登録を解除")
+    uninstall = sub.add_parser("uninstall", help="登録を解除")
+    uninstall.add_argument(
+        "--platform", choices=["linux", "macos", "windows"], help="対象OS（既定: 自動判定）"
+    )
     return parser
 
 
@@ -117,10 +124,18 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "install":
+        if args.print_only:
+            from .install import artifacts
+
+            for artifact in artifacts(args.platform):
+                print(f"# ==== {artifact.kind}: {artifact.path} ====")
+                print(artifact.content)
+            return 0
+
         from .install import InstallError, install
 
         try:
-            paths = install(enable=not args.no_enable)
+            paths = install(enable=not args.no_enable, platform=args.platform)
         except InstallError as exc:
             log.error("%s", exc)
             return 1
@@ -132,7 +147,7 @@ def main(argv: list[str] | None = None) -> int:
         from .install import InstallError, uninstall
 
         try:
-            removed = uninstall()
+            removed = uninstall(platform=args.platform)
         except InstallError as exc:
             log.error("%s", exc)
             return 1
