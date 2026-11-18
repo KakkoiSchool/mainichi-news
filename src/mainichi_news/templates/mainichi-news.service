@@ -1,0 +1,10 @@
+[Unit]
+Description=Mainichi News daily digest (島根)
+Documentation=https://github.com/KakkoiSchool/mainichi-news
+
+[Service]
+Type=oneshot
+WorkingDirectory=$workdir
+ExecStart=$exec_start
+Environment=PYTHONUNBUFFERED=1
+Nice=10

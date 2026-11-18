@@ -1,0 +1,12 @@
+[Unit]
+Description=Mainichi News at 06:00 and after boot
+
+[Timer]
+OnCalendar=*-*-* 06:00:00
+OnBootSec=90s
+Persistent=true
+RandomizedDelaySec=30
+Unit=mainichi-news.service
+
+[Install]
+WantedBy=timers.target

@@ -270,3 +270,50 @@ SMTP_PASSWORD=...
 2. **DeepSeek API キー**: 有効なものを持っているか
 3. **OS**: 実際に毎日動かすのは Linux（今の Ubuntu）か Mac か。両方なら両方 install
 4. **記事数**: 3 本 + 10 件で足りるか（島根ローカルは日によって少ないので 3 + 5 くらいが妥当かも）
+
+## 9. 実装状況（2026-11-18 完了）
+
+v1 の実装はこのリポジトリに存在する。`uv sync && uv run mainichi-news preview` で動作確認済み。
+
+| 項目 | 状態 |
+|---|---|
+| `sources/google_news.py` | ✅ 複数クエリ、媒体名除去、説明文の正規化 |
+| `sources/yahoo.py` | ✅ 地域 RSS を島根キーワードでフィルタ |
+| `dedupe.py` | ✅ NFKC 正規化 + 媒体/地域タグ除去 + 類似度重複除去 + 30h 時間窓 |
+| `summarize.py` | ✅ DeepSeek JSON、id 参照で URL を機械付与、1 回リトライ、見出しのみフォールバック |
+| `format.py` | ✅ Markdown（案 B）+ HTML メール |
+| `deliver/email.py` | ✅ SMTP（STARTTLS / 465 SSL）マルチパート |
+| `deliver/file.py` | ✅ `digest/YYYY-MM-DD.md` を常時保存 |
+| `state.py` + CLI | ✅ `run` / `force` / `preview` / `status` / `install` / `uninstall` |
+| `archive.py` | ✅ git add/commit/push（失敗は警告のみ） |
+| `install` | ✅ systemd user unit / launchd LaunchAgent を生成・登録 |
+| テスト | ✅ 30 件（ネットワーク・API キー不要） |
+
+### プランからの変更点
+
+1. **ランタイム依存ゼロ**。RSS は `urllib` + `ElementTree`、設定は `tomllib`、
+   メールは `smtplib`、DeepSeek は `urllib` の JSON POST で実装。
+   `uv sync` で入るのはパッケージ自身のみ（dev extra を除く）。
+2. **LLM の出力スキーマを id 参照に変更**。プランでは `url` を返させていたが、
+   URL ハルシネーション防止のため `id` だけ返させ、URL / 媒体名 / タイトルは
+   元記事から機械的に付与する（`top[].url` は結果として同じ形）。
+3. **Google News の `description` は使わない**。実測でタイトル＋媒体名のみだったため、
+   要約材料はタイトル・媒体・日時。`summary` が媒体名だけの場合は空にする。
+4. **systemd/launchd のテンプレートはパッケージ内** (`src/mainichi_news/templates/`)。
+   リポジトリ直下の `systemd/` `launchd/` は作らず、`install` が実パスを埋めて配置する
+   （インストール済み wheel でも動くようにするため）。
+5. **`digest_dir` は `config.toml` 直下のキー**（既定: cwd の `digest/`）。
+   アーカイブは `digest_dir` の親を git リポジトリとして扱う。
+
+### 未検証（実キーが必要）
+
+- DeepSeek 実キーでの要約品質・トークン数（401 時のフォールバックは検証済み）
+- SMTP 実送信（メッセージ組み立てとマルチパート化はテスト済み）
+- systemd timer / launchd の実発火（unit 生成と plist パースは検証済み）
+
+### 残タスク（v1.1 候補）
+
+- 記事本文取得（有料壁はスキップ）で要約精度向上
+- Google News のエンコード URL を元 URL にデコード
+- 同一イベントの媒体違いを LLM 側でクラスタリングして 1 本に集約
+- Windows (Task Scheduler) 対応

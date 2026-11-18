@@ -1,0 +1,33 @@
+# config.toml — 秘匿でない設定。秘匿値は ~/.config/mainichi-news/.env に置く。
+# 探索順: --config > $MAINICHI_NEWS_CONFIG > ./config.toml > ~/.config/mainichi-news/config.toml
+
+digest_dir = "digest"
+
+[source]
+queries = ["島根", "松江"]
+yahoo = true
+# yahoo_url = "https://news.yahoo.co.jp/rss/topics/local.xml"
+window_hours = 30
+max_articles = 30
+max_per_query = 40
+timeout = 20
+
+[summarize]
+model = "deepseek-chat"
+base_url = "https://api.deepseek.com"
+top_n = 3
+others_n = 8
+max_body_chars = 1200
+temperature = 0.3
+retries = 1
+
+[deliver]
+to = "you@example.com"
+from = "you@example.com"
+subject_prefix = "【毎日ニュース】"
+
+[archive]
+enabled = true
+push = true
+remote = "origin"
+# branch = "main"

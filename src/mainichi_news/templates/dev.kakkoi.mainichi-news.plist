@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.kakkoi.mainichi-news</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$python</string>
+    <string>-m</string>
+    <string>mainichi_news</string>
+    <string>run</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>$workdir</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>6</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>$logfile</string>
+  <key>StandardErrorPath</key>
+  <string>$logfile</string>
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>
