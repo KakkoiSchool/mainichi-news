@@ -83,7 +83,7 @@ env   : --env    > $MAINICHI_NEWS_ENV    > ~/.config/mainichi-news/.env
 
 ```bash
 uv run mainichi-news status    # email : you@example.com via smtp.example.com:587 なら OK
-uv run mainichi-news force -v  # 送信まで込みで実行（-v で SMTP のログ）
+uv run mainichi-news -v force  # 送信まで込みで実行（-v で SMTP のログ）
 ```
 
 ### Gmail（アプリパスワード）
@@ -126,19 +126,13 @@ MAINICHI_NEWS_TO=you@example.com
 
 #### 独自ドメインを使う場合（重要）
 
-Brevo の IP からは自ドメインの SPF が通りにくく、Gmail は DMARC で弾く。
-`From: you@yourdomain.com` を使うなら **Brevo でドメイン認証（DKIM）を済ませる**。
+独自ドメインを送信元に使うときは、Brevo のドメイン設定画面に表示された DNS レコードを使う。
 
-1. Brevo → *Domains* → ドメイン追加 → 表示される TXT を DNS に登録
-   - `mail._domainkey` / `brevo._domainkey`（DKIM 2 本）
-   - `brevo-code`（所有確認）
-2. SPF に Brevo を追加（任意だが推奨）
-   ```
-   yourdomain.com. TXT "v=spf1 include:spf.tutanota.de include:spf.sendinblue.com -all"
-   ```
-   ※ `include:spf.tutanota.de` は既存の MTA に合わせて読み替える
-3. `_dmarc` が `p=quarantine; adkim=s` のような厳しめの設定だと、DKIM 未署名は
-   受信側で隔離される（ログ上は「送信成功」なのに届かない）。DKIM を入れて解消する。
+1. Brevo の画面で送信ドメインを追加する。
+2. 指示された所有確認、DKIM、DMARC のレコードを DNS に反映する。既存の DMARC レコードがある場合は、現在のポリシーを確認して既存レコードを編集する。
+3. Brevo でドメイン認証が完了したことを確認し、自分のアドレスへテスト送信する。受信メールのヘッダーで DKIM と DMARC の結果を確認する。
+
+通常のドメイン認証では SPF と MX の追加は不要。専用 IP を設定する場合は、Brevo がその設定用に指定するレコードに従う。[Brevo 公式のドメイン認証手順](https://help.brevo.com/hc/en-us/articles/12163873383186-Authenticate-your-domain-with-Brevo-Brevo-code-DKIM-DMARC)。
 
 ### うまく届かないとき
 
