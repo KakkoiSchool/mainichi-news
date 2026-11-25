@@ -67,7 +67,89 @@ env   : --env    > $MAINICHI_NEWS_ENV    > ~/.config/mainichi-news/.env
 
 環境変数: `DEEPSEEK_API_KEY`, `SMTP_HOST`, `SMTP_PORT` (587/465), `SMTP_STARTTLS`,
 `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `MAINICHI_NEWS_TO`。
-Gmail はアプリパスワードを使う（2 段階認証を有効化 → アプリパスワード発行）。
+
+> **注意**: `.env` は `config.toml` と違い `./.env` を自動では読まない。
+> リポジトリ内の `.env` を編集しても効かないので、どちらか一方に統一する。
+>
+> ```bash
+> ln -sf "$PWD/.env" ~/.config/mainichi-news/.env   # リポジトリ側を正にする
+> # もしくは: uv run mainichi-news --env .env force  （--env はサブコマンドより前）
+> ```
+
+## メール送信の設定
+
+`SMTP_HOST` と送信先（`MAINICHI_NEWS_TO` か `[deliver].to`）の両方が揃ったときだけ送信する。
+どちらかが空だと「保存のみ」で静かにスキップするので、まず `status` で確認する。
+
+```bash
+uv run mainichi-news status    # email : you@example.com via smtp.example.com:587 なら OK
+uv run mainichi-news force -v  # 送信まで込みで実行（-v で SMTP のログ）
+```
+
+### Gmail（アプリパスワード）
+
+1. <https://myaccount.google.com/security> で **2 段階認証** を有効化（必須）
+2. <https://myaccount.google.com/apppasswords> でアプリ名 `mainichi-news` を作成
+3. 表示された **16 文字** を `SMTP_PASSWORD` に入れる（空白は詰める）
+
+```bash
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_STARTTLS=true
+SMTP_USER=you@gmail.com
+SMTP_PASSWORD=abcdefghijklmnop     # 16 文字のアプリパスワード（アカウントのパスワードではない）
+SMTP_FROM=you@gmail.com
+MAINICHI_NEWS_TO=you@gmail.com
+```
+
+Google が SPF/DKIM を整えてくれるので、独自ドメインの DNS を触らずに済む最短ルート。
+送信控えは Gmail の「送信済み」に残る（そこに出ていなければ SMTP 側で受理されていない）。
+
+### Brevo（SMTP リレー）
+
+1. **送信元を認証**: Brevo → *Senders, Domains & Dedicated IPs* → *Senders* → アドレス追加 →
+   届いた確認リンクをクリック。未認証の `SMTP_FROM` は `550 Sender not verified` で拒否される。
+2. **SMTP 認証情報**: Brevo → *SMTP & API* → **SMTP** タブ
+   - host: `smtp-relay.brevo.com` / port: `587`（STARTTLS）または `465`（SSL）、`2525` も可
+   - **Login**: 画面に出ている値をそのまま使う（新しいアカウントは `9xxxxx001@smtp-brevo.com` 形式）
+   - **SMTP key**: `xsmtpsib-…`。表示されていなければ発行する。**アカウントのパスワードではない**
+
+```bash
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=587
+SMTP_STARTTLS=true
+SMTP_USER=9xxxxx001@smtp-brevo.com  # SMTP タブの Login（ログインメールとは限らない）
+SMTP_PASSWORD=xsmtpsib-xxxxxxxx      # SMTP key
+SMTP_FROM=contact@yourdomain.com     # Brevo で認証した送信元
+MAINICHI_NEWS_TO=you@example.com
+```
+
+#### 独自ドメインを使う場合（重要）
+
+Brevo の IP からは自ドメインの SPF が通りにくく、Gmail は DMARC で弾く。
+`From: you@yourdomain.com` を使うなら **Brevo でドメイン認証（DKIM）を済ませる**。
+
+1. Brevo → *Domains* → ドメイン追加 → 表示される TXT を DNS に登録
+   - `mail._domainkey` / `brevo._domainkey`（DKIM 2 本）
+   - `brevo-code`（所有確認）
+2. SPF に Brevo を追加（任意だが推奨）
+   ```
+   yourdomain.com. TXT "v=spf1 include:spf.tutanota.de include:spf.sendinblue.com -all"
+   ```
+   ※ `include:spf.tutanota.de` は既存の MTA に合わせて読み替える
+3. `_dmarc` が `p=quarantine; adkim=s` のような厳しめの設定だと、DKIM 未署名は
+   受信側で隔離される（ログ上は「送信成功」なのに届かない）。DKIM を入れて解消する。
+
+### うまく届かないとき
+
+| 症状 | 原因 / 対処 |
+|---|---|
+| `メール未設定のため送信スキップ` | `SMTP_HOST` か送信先が空。`status` で確認 |
+| `SMTP_USER / SMTP_PASSWORD が未設定` | `.env` が空 or 別ファイルを編集している（`--env` / symlink で統一） |
+| `535 Authentication failed` | Login かパスワード違い（Gmail はアプリパスワード、Brevo は SMTP key） |
+| `550 Sender not verified` | `SMTP_FROM` が Brevo 未認証 / Gmail 以外のドメインを勝手に From にしている |
+| `Connection unexpectedly closed` | port と TLS の不一致（465 は SSL、587 は STARTTLS） |
+| ログは成功なのに届かない | Gmail の迷惑メール / Brevo の *Transactional → Logs* を確認。独自ドメインなら DKIM 未設定を疑う |
 
 ## スケジューリング
 
