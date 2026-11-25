@@ -96,7 +96,20 @@ def cmd_status(cfg) -> int:
     return 0
 
 
+def use_utf8_stdio() -> None:
+    """日本語を出せるよう stdout/stderr を UTF-8 にする（Windows の cp1252 対策）。"""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):  # closed or exotic stream
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    use_utf8_stdio()
     parser = build_parser()
     args = parser.parse_args(argv)
     setup_logging(args.verbose, args.quiet)

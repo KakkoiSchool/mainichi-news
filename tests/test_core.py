@@ -129,3 +129,20 @@ def test_file_deliverer_writes_markdown(tmp_path, digest):
     result = FileDeliverer(tmp_path).send(digest, digest.subject, "# md", "<p>x</p>")
     assert result.endswith("2026-11-11.md")
     assert (tmp_path / "2026-11-11.md").read_text(encoding="utf-8") == "# md"
+
+
+def test_use_utf8_stdio_reconfigures_both_streams(monkeypatch):
+    import sys
+
+    from mainichi_news import cli
+
+    calls = []
+
+    class FakeStream:
+        def reconfigure(self, **kwargs):
+            calls.append(kwargs)
+
+    monkeypatch.setattr(sys, "stdout", FakeStream())
+    monkeypatch.setattr(sys, "stderr", FakeStream())
+    cli.use_utf8_stdio()
+    assert calls == [{"encoding": "utf-8", "errors": "replace"}] * 2
