@@ -27,7 +27,8 @@ from mainichi_news.install import (
     write_artifact,
 )
 
-WD = Path("/srv/mainichi-news")
+# install() resolves the workdir, so Windows adds a drive letter (D:\\srv\\...)
+WD = Path("/srv/mainichi-news").resolve()
 PY = "/srv/mainichi-news/.venv/bin/python"
 NS = {"t": "http://schemas.microsoft.com/windows/2004/02/mit/task"}
 
